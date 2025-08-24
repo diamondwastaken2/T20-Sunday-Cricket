@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>T20 Cricket Over Counter</title>
+  <style>
+    :root {
+      --bg: #0e1117;
+      --card: #161b22;
+      --text: #e6edf3;
+      --muted: #9da7b1;
+      --accent: #2ea043;
+      --danger: #d7263d;
+      --shadow: rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      min-height: 100dvh;
+      padding: 20px;
+    }
+    .app {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border-radius: 20px;
+      box-shadow: 0 12px 30px var(--shadow);
+      overflow: hidden;
+    }
+    .header {
+      padding: 18px 20px;
+      border-bottom: 1px solid #232a33;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .pill {
+      background: #232a33;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 16px;
+    }
+    .stat {
+      background: #11161d;
+      border: 1px solid #232a33;
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat .label {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+    }
+    .stat .value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+    .big-btn {
+      width: 100%;
+      padding: 18px 20px;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      border: none;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .big-btn:active { filter: brightness(0.95); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px 16px 16px 16px;
+    }
+    .control-btn {
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 12px;
+      border: 1px solid #232a33;
+      background: #131922;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .control-btn:active { filter: brightness(1.1); }
+    .reset { background: #1a202a; }
+    .undo { background: #161f29; }
+
+    .footer {
+      padding: 10px 16px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Game-over overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+    .overlay.show { display: flex; }
+    .dialog {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid #232a33;
+      border-radius: 18px;
+      box-shadow: 0 12px 30px var(--shadow);
+      padding: 22px;
+      text-align: center;
+    }
+    .dialog h2 { margin: 6px 0 6px; font-size: 24px; }
+    .dialog p { margin: 0 0 16px; color: var(--muted); }
+    .dialog .actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .primary { background: var(--accent); color: #fff; border: none; padding: 12px 16px; border-radius: 12px; font-weight: 800; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="T20 cricket over counter">
+    <div class="header">
+      <div class="title">T20 Over Counter</div>
+      <div class="pill" id="inningsLabel">T20 • 20 overs</div>
+    </div>
+
+    <div class="stats" aria-live="polite">
+      <div class="stat" aria-label="Overs completed">
+        <div class="label">Overs</div>
+        <div class="value" id="overs">0</div>
+      </div>
+      <div class="stat" aria-label="Balls in current over">
+        <div class="label">Balls this over</div>
+        <div class="value" id="balls">0</div>
+      </div>
+      <div class="stat" aria-label="Total balls bowled">
+        <div class="label">Total Balls</div>
+        <div class="value" id="total">0</div>
+      </div>
+    </div>
+
+    <button id="ballBtn" class="big-btn" aria-label="Count a ball">BOWL (Add 1 Ball)</button>
+
+    <div class="controls">
+      <button class="control-btn undo" id="undoBtn" aria-label="Undo last ball">Undo</button>
+      <button class="control-btn reset" id="resetBtn" aria-label="Reset match">Reset</button>
+    </div>
+
+    <div class="footer">
+      Tip: 6 balls make an over. After 20 overs, the app will restart.
+    </div>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div id="overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+    <div class="dialog">
+      <h2 id="gameOverTitle">Good Game! Play again?</h2>
+      <p>T20 completed (20 overs).</p>
+      <div class="actions">
+        <button class="primary" id="playAgainBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const MAX_OVERS = 20;
+      const BALLS_PER_OVER = 6;
+
+      let overs = 0;
+      let balls = 0; // balls in current over
+      let totalBalls = 0; // total across the innings
+
+      const elOvers = document.getElementById('overs');
+      const elBalls = document.getElementById('balls');
+      const elTotal = document.getElementById('total');
+      const ballBtn = document.getElementById('ballBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const undoBtn = document.getElementById('undoBtn');
+      const overlay = document.getElementById('overlay');
+      const playAgainBtn = document.getElementById('playAgainBtn');
+
+      function vibrate(ms) {
+        try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {}
+      }
+
+      function updateUI() {
+        elOvers.textContent = String(overs);
+        elBalls.textContent = String(balls);
+        elTotal.textContent = String(totalBalls);
+      }
+
+      function resetAll() {
+        overs = 0;
+        balls = 0;
+        totalBalls = 0;
+        updateUI();
+      }
+
+      function gameOver() {
+        // Show overlay with message and reset state underneath
+        overlay.classList.add('show');
+      }
+
+      function hideOverlay() {
+        overlay.classList.remove('show');
+      }
+
+      function addBall() {
+        // Prevent counting beyond the match
+        if (overs >= MAX_OVERS) {
+          gameOver();
+          return;
+        }
+
+        balls += 1;
+        totalBalls += 1;
+        vibrate(10);
+
+        if (balls >= BALLS_PER_OVER) {
+          overs += 1;
+          balls = 0;
+        }
+        updateUI();
+
+        // If we've just finished the 20th over, trigger game over
+        if (overs >= MAX_OVERS && balls === 0) {
+          // Slight delay so the UI renders the final state cleanly
+          setTimeout(gameOver, 50);
+        }
+      }
+
+      function undo() {
+        if (totalBalls <= 0) return;
+        // If we are at the start of an over (balls == 0) and overs > 0, roll back to 5 balls in previous over
+        if (balls === 0 && overs > 0) {
+          overs -= 1;
+          balls = BALLS_PER_OVER - 1;
+        } else {
+          balls -= 1;
+        }
+        totalBalls -= 1;
+        updateUI();
+      }
+
+      // Wire up controls
+      ballBtn.addEventListener('click', addBall);
+      ballBtn.addEventListener('touchend', function(e){ e.preventDefault(); });
+      resetBtn.addEventListener('click', () => { hideOverlay(); resetAll(); vibrate(20); });
+      undoBtn.addEventListener('click', () => { hideOverlay(); undo(); vibrate(10); });
+      playAgainBtn.addEventListener('click', () => { resetAll(); hideOverlay(); vibrate(20); });
+
+      // Keyboard support (optional)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key.toLowerCase() === 'b') { addBall(); }
+        if (e.key.toLowerCase() === 'r') { resetAll(); }
+        if (e.key.toLowerCase() === 'u') { undo(); }
+      });
+
+      updateUI();
+    })();
+  </script>
+</body>
+</html>
